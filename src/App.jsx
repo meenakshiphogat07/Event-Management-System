@@ -1,56 +1,26 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import QRCode from 'qrcode'
-import { db } from './firebase.js'
-import { collection, addDoc, getDocs, query, orderBy, doc, getDoc } from 'firebase/firestore'
-
-const manageEventTypes = [
-  { id: 'birthday', label: 'Birthday Party' },
-  { id: 'anniversary', label: 'Anniversary' },
-  { id: 'wedding', label: 'Wedding' },
-  { id: 'other', label: 'Other Cultural Event' }
-]
-
-const exploreEvents = [
-  {
-    id: 'technophilia-2026',
-    title: 'Technophilia 2026',
-    venue: 'DVSIET',
-    date: '2026',
-    description: 'A technical festival full of workshops, showcases, and networking.',
-    imageUrl: 'https://source.unsplash.com/featured/400x250/?technology,event'
-  },
-  {
-    id: 'melody-mania',
-    title: 'Melody Mania',
-    venue: 'City Auditorium',
-    date: '2026',
-    description: 'A live music experience with top local artists and new acts.',
-    imageUrl: 'https://source.unsplash.com/featured/400x250/?music,concert'
-  },
-  {
-    id: 'art-connect',
-    title: 'Art Connect',
-    venue: 'Expo Hall',
-    date: '2026',
-    description: 'A cultural event to explore art, crafts, and creative workshops.',
-    imageUrl: 'https://source.unsplash.com/featured/400x250/?art,exhibition'
-  }
-]
+import { db, auth } from './firebase.js'
+import { collection, addDoc, getDocs, query, orderBy, doc, getDoc, where } from 'firebase/firestore'
+import { signOut } from 'firebase/auth'
+import { useAuth } from './AuthContext'
+import Login from './Login'
+import Signup from './Signup'
+import EventUpload from './EventUpload'
 
 function App() {
+  const { user, loading: authLoading } = useAuth()
+  const [isGuest, setIsGuest] = useState(false)
   const [activeSection, setActiveSection] = useState('dashboard')
-  const [manageType, setManageType] = useState('')
+  const [authMode, setAuthMode] = useState('login')
   const [registrations, setRegistrations] = useState([])
+  const [uploadedEvents, setUploadedEvents] = useState([])
   const [viewRegistration, setViewRegistration] = useState(null)
   const [loadingView, setLoadingView] = useState(false)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState('')
-  const [joinForm, setJoinForm] = useState({ name: '', email: '', college: '', eventId: 'technophilia-2026' })
-
-  useEffect(() => {
-    loadRegistrations()
-  }, [])
+  const [joinForm, setJoinForm] = useState({ name: '', email: '', college: '', eventId: '' })
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -61,13 +31,59 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    loadUploadedEvents()
+    if (user) {
+      loadRegistrations()
+    } else {
+      setRegistrations([])
+    }
+  }, [user])
+
+  const currentUser = isGuest
+    ? { uid: 'guest', displayName: 'Guest User', isGuest: true }
+    : user
+
+  const loadRegistrations = async () => {
+    if (!user) return
+    try {
+      const registrationQuery = query(
+        collection(db, 'registrations'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      )
+      const snapshot = await getDocs(registrationQuery)
+      const items = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+      const itemsWithQr = await Promise.all(items.map(generateQrData))
+      setRegistrations(itemsWithQr)
+    } catch (error) {
+      console.error('Firestore load failed:', error)
+    }
+  }
+
+  const loadUploadedEvents = async () => {
+    try {
+      const eventsQuery = query(
+        collection(db, 'events'),
+        orderBy('createdAt', 'desc')
+      )
+      const snapshot = await getDocs(eventsQuery)
+      const items = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+      setUploadedEvents(items)
+    } catch (error) {
+      console.error('Error loading events:', error)
+    }
+  }
+
   const fetchRegistrationById = async (id) => {
     setLoadingView(true)
     try {
       const docRef = doc(db, 'registrations', id)
       const docSnap = await getDoc(docRef)
       if (docSnap.exists()) {
-        setViewRegistration({ id: docSnap.id, ...docSnap.data() })
+        const regData = { id: docSnap.id, ...docSnap.data() }
+        const withQr = await generateQrData(regData)
+        setViewRegistration(withQr)
       } else {
         setViewRegistration('not-found')
       }
@@ -76,19 +92,6 @@ function App() {
       setViewRegistration('error')
     } finally {
       setLoadingView(false)
-    }
-  }
-
-  const loadRegistrations = async () => {
-    try {
-      const registrationQuery = query(collection(db, 'registrations'), orderBy('createdAt', 'desc'))
-      const snapshot = await getDocs(registrationQuery)
-      const items = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
-      const itemsWithQr = await Promise.all(items.map(generateQrData))
-      setRegistrations(itemsWithQr)
-    } catch (error) {
-      console.error('Firestore load failed:', error)
-      setStatus('Unable to load registrations from Firebase.')
     }
   }
 
@@ -105,40 +108,46 @@ function App() {
 
   const openSection = (section) => {
     setActiveSection(section)
-    setManageType('')
     setStatus('')
     setViewRegistration(null)
   }
 
   const handleJoinSubmit = async (e) => {
     e.preventDefault()
-    if (!joinForm.name || !joinForm.email || !joinForm.college) {
-      setStatus('Please enter your name, email, and college name.')
+    if (!joinForm.name || !joinForm.email || !joinForm.college || !joinForm.eventId) {
+      setStatus('Please fill all fields and select an event.')
       return
     }
     setSaving(true)
     setStatus('')
 
     try {
-      const selectedEvent = exploreEvents.find((event) => event.id === joinForm.eventId)
+      const eventRef = doc(db, 'events', joinForm.eventId)
+      const eventSnap = await getDoc(eventRef)
+      const eventData = eventSnap.data()
+
       const newRegistration = {
-        eventId: selectedEvent?.id || 'technophilia-2026',
-        eventTitle: selectedEvent?.title || 'Technophilia 2026',
-        eventVenue: selectedEvent?.venue || 'DVSIET',
+        eventId: joinForm.eventId,
+        eventTitle: eventData?.title || 'Event',
+        eventVenue: eventData?.venue || 'TBD',
         name: joinForm.name,
         email: joinForm.email,
         college: joinForm.college,
+        userId: currentUser?.isGuest ? null : currentUser?.uid,
+        attendeeType: currentUser?.isGuest ? 'guest' : 'user',
         createdAt: new Date()
       }
+
       const savePromise = addDoc(collection(db, 'registrations'), newRegistration)
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Save took too long')), 5000))
       const docRef = await Promise.race([savePromise, timeoutPromise])
+      
       const saved = { id: docRef.id, ...newRegistration }
       const savedWithQr = await generateQrData(saved)
       setRegistrations((current) => [savedWithQr, ...current])
-      setJoinForm({ name: '', email: '', college: '', eventId: 'technophilia-2026' })
-      setStatus('Registration successful! Your unique QR code is ready below.')
-      setActiveSection('registered')
+      setJoinForm({ name: '', email: '', college: '', eventId: '' })
+      setStatus('Registration successful! Your unique QR code is ready.')
+      setActiveSection('wallet')
     } catch (error) {
       console.error('Registration failed:', error)
       setStatus('Unable to save registration. Please try again.')
@@ -147,166 +156,305 @@ function App() {
     }
   }
 
-  const selectedEvent = exploreEvents.find((event) => event.id === joinForm.eventId)
-  const showBackButton = activeSection !== 'dashboard' || !!viewRegistration
+  const handleLogout = async () => {
+    if (isGuest) {
+      setIsGuest(false)
+      setRegistrations([])
+      setActiveSection('dashboard')
+      setStatus('')
+      return
+    }
+
+    await signOut(auth)
+    setActiveSection('dashboard')
+  }
+
+  const handleEventUploaded = async (newEvent) => {
+    setUploadedEvents(prev => [newEvent, ...prev])
+    setStatus('')
+  }
+
+  if (authLoading) {
+    return (
+      <div className="app">
+        <div className="status-screen">
+          <p>Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="app">
+        <div className="app-shell">
+          <div>
+            <h1>Planora</h1>
+            <p className="subtitle">Your event dashboard for planning, booking, and tracking registered events.</p>
+          </div>
+        </div>
+        {authMode === 'login' ? (
+          <Login 
+            onSwitchToSignup={() => setAuthMode('signup')}
+            onLoginSuccess={() => setActiveSection('dashboard')}
+            onContinueAsGuest={() => {
+              setIsGuest(true)
+              setActiveSection('dashboard')
+              setStatus('')
+            }}
+          />
+        ) : (
+          <Signup 
+            onSwitchToLogin={() => setAuthMode('login')}
+            onContinueAsGuest={() => {
+              setIsGuest(true)
+              setActiveSection('dashboard')
+              setStatus('')
+            }}
+            onSignupSuccess={() => {
+              setAuthMode('login')
+              setStatus('Signup successful! Please log in.')
+            }}
+          />
+        )}
+      </div>
+    )
+  }
 
   const renderDashboard = () => (
     <div className="dashboard-grid">
       <div className="section-card dashboard-intro">
-        <h2>Welcome to Planora</h2>
-        <p>Manage your events, join curated experiences, and keep all registrations in one polished dashboard.</p>
+        <h2>Welcome to Planora, {currentUser?.displayName?.split(' ')[0]}!</h2>
+        <p>
+          {currentUser?.isGuest
+            ? 'Browse events and register as a guest. Log in later if you want to create and manage your own events.'
+            : 'Manage your events, join curated experiences, and keep all registrations in your digital wallet.'}
+        </p>
       </div>
-      <button className="dashboard-card dashboard-card-manage" onClick={() => openSection('manage')}>
-        <div>
-          <h3>Manage Event</h3>
-          <p>Choose an event type to configure plans, guests, and timelines.</p>
-        </div>
-      </button>
-      <button className="dashboard-card dashboard-card-join" onClick={() => openSection('join')}>
-        <div>
-          <h3>Join Event</h3>
-          <p>Browse upcoming events with personalized registration and QR access.</p>
-        </div>
-      </button>
-      <button className="dashboard-card dashboard-card-registered" onClick={() => openSection('registered')}>
-        <div>
-          <h3>Registered Events</h3>
-          <p>Review past registrations and access QR codes instantly.</p>
-        </div>
-      </button>
-    </div>
-  )
-
-  const renderJoin = () => (
-    <div className="section-card join-section">
-      <div className="section-header">
-        <h2>Book My Show</h2>
-        <p>Select an event, then complete the registration form below.</p>
-      </div>
-      <div className="events-grid">
-        {exploreEvents.map((event) => (
-          <div key={event.id} className={`event-card ${event.id === selectedEvent?.id ? 'active' : ''}`}>
-            <img src={event.imageUrl} alt={event.title} />
-            <div className="event-card-body">
-              <strong>{event.title}</strong>
-              <p>{event.venue} • {event.date}</p>
-              <p>{event.description}</p>
-            </div>
-            <button type="button" onClick={() => setJoinForm((current) => ({ ...current, eventId: event.id }))}>
-              {event.id === selectedEvent?.id ? 'Selected' : 'Select'}
-            </button>
+      {!currentUser?.isGuest && (
+        <button className="dashboard-card dashboard-card-manage" onClick={() => openSection('create')}>
+          <div>
+            <h3>Create Event</h3>
+            <p>Upload your event with images and generate QR tickets.</p>
           </div>
-        ))}
-      </div>
-      <form className="form-grid" onSubmit={handleJoinSubmit}>
-        <div className="field-group">
-          <label htmlFor="name">Name</label>
-          <input
-            id="name"
-            type="text"
-            placeholder="Enter your name"
-            value={joinForm.name}
-            onChange={(e) => setJoinForm({ ...joinForm, name: e.target.value })}
-          />
-        </div>
-        <div className="field-group">
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            placeholder="Enter your email"
-            value={joinForm.email}
-            onChange={(e) => setJoinForm({ ...joinForm, email: e.target.value })}
-          />
-        </div>
-        <div className="field-group">
-          <label htmlFor="college">College Name</label>
-          <input
-            id="college"
-            type="text"
-            placeholder="Enter your college"
-            value={joinForm.college}
-            onChange={(e) => setJoinForm({ ...joinForm, college: e.target.value })}
-          />
-        </div>
-        <button type="submit" disabled={saving} className="primary-action">
-          {saving ? 'Joining...' : `Join ${selectedEvent?.title}`}
         </button>
-      </form>
-      {status && <p className="status-message">{status}</p>}
+      )}
+      <button className="dashboard-card dashboard-card-join" onClick={() => openSection('browse')}>
+        <div>
+          <h3>Browse Events</h3>
+          <p>Join upcoming events and get instant QR tickets.</p>
+        </div>
+      </button>
+      <button className="dashboard-card dashboard-card-registered" onClick={() => openSection('wallet')}>
+        <div>
+          <h3>My Wallet</h3>
+          <p>
+            {currentUser?.isGuest
+              ? 'View tickets created in this guest session.'
+              : 'View all your event tickets with QR codes.'}
+          </p>
+        </div>
+      </button>
     </div>
   )
 
-  const renderRegistered = () => (
-    <div className="section-card registered-section">
+  const renderBrowseEvents = () => (
+    <div className="section-card browse-events-card">
       <div className="section-header">
-        <h2>Registered Events</h2>
-        <p>All your event registrations are listed below with QR codes for easy access.</p>
+        <h2>Browse Events</h2>
+        <p>Discover and join events created by other users</p>
       </div>
-      {registrations.length === 0 ? (
-        <p className="empty-message">No registrations yet. Join an event to get started.</p>
+
+      {uploadedEvents.length === 0 ? (
+        <p className="empty-message">No events available yet.</p>
       ) : (
-        <ul className="registered-list">
-          {registrations.map((reg) => (
-            <li key={reg.id} className="registration-item">
-              <div className="registration-text">
-                <strong>{reg.eventTitle}</strong>
-                <p>{reg.eventVenue} • {new Date(reg.createdAt?.seconds ? reg.createdAt.seconds * 1000 : reg.createdAt).toLocaleDateString()}</p>
-                <p>{reg.name} • {reg.college}</p>
+        <div className="events-grid">
+          {uploadedEvents.map((event) => (
+            <div key={event.id} className="event-card browse-event">
+              <img src={event.imageUrl} alt={event.title} />
+              <div className="event-card-body">
+                <strong>{event.title}</strong>
+                <p><span className="event-badge">{event.category}</span></p>
+                <p>{event.venue} • {new Date(event.date).toLocaleDateString()}</p>
+                {event.time && <p>⏰ {event.time}</p>}
+                <p>{event.description?.substring(0, 80)}...</p>
+                <p className="event-capacity">Capacity: {event.capacity}</p>
               </div>
-              {reg.qrData ? (
-                <img className="qr-code" src={reg.qrData} alt={`QR code for ${reg.name}`} />
-              ) : (
-                <span className="badge">QR generating...</span>
-              )}
-            </li>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setJoinForm(prev => ({ ...prev, eventId: event.id }))
+                  openSection('join')
+                }}
+              >
+                Join Event
+              </button>
+            </div>
           ))}
-        </ul>
-      )}
-    </div>
-  )
-
-  const renderRegistrationDetails = () => (
-    <div className="section-card registration-details-card">
-      <div className="section-header">
-        <h2>Registration Details</h2>
-      </div>
-      {viewRegistration === 'not-found' && (
-        <p className="empty-message">The registration you're looking for doesn't exist.</p>
-      )}
-      {viewRegistration === 'error' && (
-        <p className="empty-message">There was an error loading the registration details.</p>
-      )}
-      {viewRegistration && viewRegistration !== 'not-found' && viewRegistration !== 'error' && (
-        <div className="detail-grid">
-          <div>
-            <p><strong>Event:</strong> {viewRegistration.eventTitle}</p>
-            <p><strong>Venue:</strong> {viewRegistration.eventVenue}</p>
-            <p><strong>Name:</strong> {viewRegistration.name}</p>
-            <p><strong>Email:</strong> {viewRegistration.email}</p>
-            <p><strong>College:</strong> {viewRegistration.college}</p>
-          </div>
-          <div>
-            <p><strong>Registered At:</strong></p>
-            <p>{viewRegistration.createdAt?.toDate?.()?.toLocaleString() || 'Unknown'}</p>
-          </div>
         </div>
       )}
     </div>
   )
+
+  const renderJoinEvent = () => {
+    const selectedEvent = uploadedEvents.find(e => e.id === joinForm.eventId)
+    
+    return (
+      <div className="section-card join-section">
+        <div className="section-header">
+          <h2>Join Event</h2>
+          <p>Complete your registration to get QR ticket</p>
+        </div>
+
+        {selectedEvent && (
+          <div className="selected-event-preview">
+            <img src={selectedEvent.imageUrl} alt={selectedEvent.title} />
+            <div>
+              <h3>{selectedEvent.title}</h3>
+              <p>{selectedEvent.venue}</p>
+              <p>{new Date(selectedEvent.date).toLocaleDateString()}</p>
+            </div>
+          </div>
+        )}
+
+        <form className="form-grid" onSubmit={handleJoinSubmit}>
+          <div className="field-group">
+            <label htmlFor="join-name">Name *</label>
+            <input
+              id="join-name"
+              type="text"
+              placeholder="Enter your name"
+              value={joinForm.name}
+              onChange={(e) => setJoinForm({ ...joinForm, name: e.target.value })}
+              required
+            />
+          </div>
+          <div className="field-group">
+            <label htmlFor="join-email">Email *</label>
+            <input
+              id="join-email"
+              type="email"
+              placeholder="Enter your email"
+              value={joinForm.email}
+              onChange={(e) => setJoinForm({ ...joinForm, email: e.target.value })}
+              required
+            />
+          </div>
+          <div className="field-group">
+            <label htmlFor="join-college">Organization *</label>
+            <input
+              id="join-college"
+              type="text"
+              placeholder="Enter your organization"
+              value={joinForm.college}
+              onChange={(e) => setJoinForm({ ...joinForm, college: e.target.value })}
+              required
+            />
+          </div>
+          <button type="submit" disabled={saving} className="primary-action">
+            {saving ? 'Registering...' : 'Get Ticket'}
+          </button>
+        </form>
+
+        {status && <p className="status-message">{status}</p>}
+      </div>
+    )
+  }
+
+  const renderWallet = () => (
+    <div className="section-card wallet-card">
+      <div className="section-header">
+        <h2>My Event Wallet</h2>
+        <p>Your registered events and QR tickets</p>
+      </div>
+
+      {registrations.length === 0 ? (
+        <p className="empty-message">No registered events. Browse and join events to get started!</p>
+      ) : (
+        <div className="ticket-list">
+          {registrations.map((reg) => (
+            <div key={reg.id} className="ticket-card">
+              <div className="ticket-content">
+                <div className="ticket-info">
+                  <h3>{reg.eventTitle}</h3>
+                  <p className="ticket-venue">{reg.eventVenue}</p>
+                  <p className="ticket-attendee">{reg.name}</p>
+                  <p className="ticket-email">{reg.email}</p>
+                  <p className="ticket-date">
+                    {new Date(reg.createdAt?.seconds ? reg.createdAt.seconds * 1000 : reg.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                {reg.qrData && (
+                  <div className="ticket-qr">
+                    <img src={reg.qrData} alt="Ticket QR Code" />
+                    <p className="qr-label">Scan to verify</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
+  const renderMyEvents = () => {
+    const myEvents = uploadedEvents.filter(e => e.creatorId === currentUser?.uid)
+    
+    return (
+      <div className="section-card my-events-card">
+        <div className="section-header">
+          <h2>My Events</h2>
+          <p>Manage your created events</p>
+        </div>
+
+        {myEvents.length === 0 ? (
+          <p className="empty-message">You haven't created any events yet. Create one to get started!</p>
+        ) : (
+          <div className="events-grid">
+            {myEvents.map((event) => (
+              <div key={event.id} className="event-card my-event">
+                <img src={event.imageUrl} alt={event.title} />
+                <div className="event-card-body">
+                  <strong>{event.title}</strong>
+                  <p><span className="event-badge">{event.category}</span></p>
+                  <p>{event.venue}</p>
+                  <p>{new Date(event.date).toLocaleDateString()}</p>
+                  <p className="event-capacity">Capacity: {event.capacity}</p>
+                  <p className="event-status">Status: <span className={`status-${event.status}`}>{event.status}</span></p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const showBackButton = activeSection !== 'dashboard' || !!viewRegistration
 
   return (
     <div className="app">
       <div className="app-shell">
         <div>
           <h1>Planora</h1>
-          <p className="subtitle">Your event dashboard for planning, booking, and tracking registered events.</p>
+          <p className="subtitle">Your digital event management & ticketing platform</p>
         </div>
-        {showBackButton && (
-          <button className="back-button" onClick={() => openSection('dashboard')}>
-            Back to Dashboard
-          </button>
-        )}
+        <div className="app-actions">
+          {currentUser && (
+            <>
+              <span className="user-name">{currentUser.displayName}</span>
+              <button className="logout-button" onClick={handleLogout}>
+                {currentUser?.isGuest ? 'Exit Guest Mode' : 'Logout'}
+              </button>
+            </>
+          )}
+          {showBackButton && (
+            <button className="back-button" onClick={() => openSection('dashboard')}>
+              Back
+            </button>
+          )}
+        </div>
       </div>
 
       {loadingView ? (
@@ -314,54 +462,48 @@ function App() {
           <h2>Loading registration details...</h2>
         </div>
       ) : viewRegistration ? (
-        renderRegistrationDetails()
+        <div className="section-card registration-details-card">
+          <div className="section-header">
+            <h2>Registration Details</h2>
+          </div>
+          {viewRegistration === 'not-found' && (
+            <p className="empty-message">The registration you're looking for doesn't exist.</p>
+          )}
+          {viewRegistration === 'error' && (
+            <p className="empty-message">There was an error loading the registration details.</p>
+          )}
+          {viewRegistration && viewRegistration !== 'not-found' && viewRegistration !== 'error' && (
+            <div className="detail-grid">
+              <div>
+                <p><strong>Event:</strong> {viewRegistration.eventTitle}</p>
+                <p><strong>Venue:</strong> {viewRegistration.eventVenue}</p>
+                <p><strong>Name:</strong> {viewRegistration.name}</p>
+                <p><strong>Email:</strong> {viewRegistration.email}</p>
+                <p><strong>Organization:</strong> {viewRegistration.college}</p>
+              </div>
+              <div>
+                {viewRegistration.qrData && (
+                  <img src={viewRegistration.qrData} alt="Event QR Code" className="qr-code-large" />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       ) : activeSection === 'dashboard' ? (
         renderDashboard()
-      ) : activeSection === 'manage' ? (
-        <ManageEvent manageType={manageType} setManageType={setManageType} />
+      ) : activeSection === 'create' ? (
+        <EventUpload onEventUploaded={handleEventUploaded} />
+      ) : activeSection === 'browse' ? (
+        renderBrowseEvents()
       ) : activeSection === 'join' ? (
-        renderJoin()
-      ) : activeSection === 'registered' ? (
-        renderRegistered()
+        renderJoinEvent()
+      ) : activeSection === 'wallet' ? (
+        renderWallet()
+      ) : activeSection === 'my-events' ? (
+        renderMyEvents()
       ) : null}
-    </div>
-  )
-}
 
-function ManageEvent({ manageType, setManageType }) {
-  const selectedType = manageEventTypes.find((item) => item.id === manageType)
-
-  return (
-    <div className="section-card manage-event-card">
-      <div className="section-header">
-        <h2>Manage Event</h2>
-        <p>Choose an event type to see the next steps for planning and execution.</p>
-      </div>
-      {!manageType ? (
-        <div className="event-selection grid-two">
-          {manageEventTypes.map((type) => (
-            <button key={type.id} onClick={() => setManageType(type.id)}>
-              {type.label}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="section-card inner-card">
-          <h3>{selectedType?.label}</h3>
-          <p>Ready to manage your {selectedType?.label.toLowerCase()}.</p>
-          <div className="manage-details">
-            <p><strong>What to do next</strong></p>
-            <ul>
-              <li>Define your event goals and theme.</li>
-              <li>Plan the guest list, budget, and logistics.</li>
-              <li>Choose vendors, catering, and entertainment.</li>
-            </ul>
-          </div>
-          <button className="secondary" onClick={() => setManageType('')}>
-            Choose another event
-          </button>
-        </div>
-      )}
+      {status && <p className="status-message">{status}</p>}
     </div>
   )
 }

@@ -1,9 +1,9 @@
 ﻿:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Arial, 'Segoe UI', system-ui, sans-serif;
   line-height: 1.6;
   font-weight: 400;
-  color: #111827;
-  background-color: #eef4ff;
+  color: #202124;
+  background-color: #f8fafd;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -13,21 +13,19 @@
 
 a {
   font-weight: 600;
-  color: #4f46e5;
+  color: #1a73e8;
   text-decoration: none;
 }
 
 a:hover {
-  color: #3730a3;
+  color: #1765cc;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: radial-gradient(circle at top left, rgba(79, 70, 229, 0.2), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.15), transparent 30%),
-    linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, #f8fafd 0%, #ffffff 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -48,17 +46,5 @@ h1,
 h2,
 h3 {
   margin: 0;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f8fafc;
-    background-color: #0b1120;
-  }
-  body {
-    background: radial-gradient(circle at top left, rgba(79, 70, 229, 0.18), transparent 28%),
-      radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.12), transparent 32%),
-      linear-gradient(180deg, #0f172a 0%, #0b1120 100%);
-  }
 }
 

@@ -1,9 +1,23 @@
+ :root {
+  --bg: #f8fafd;
+  --surface: #ffffff;
+  --surface-muted: #f8f9fa;
+  --border: #dadce0;
+  --text: #202124;
+  --text-muted: #5f6368;
+  --primary: #1a73e8;
+  --primary-hover: #1765cc;
+  --primary-soft: #e8f0fe;
+  --shadow-soft: 0 1px 2px rgba(60, 64, 67, 0.15), 0 1px 3px 1px rgba(60, 64, 67, 0.1);
+  --shadow-raised: 0 4px 12px rgba(60, 64, 67, 0.16);
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
-  color: #0f172a;
+  font-family: Arial, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .app {
@@ -24,13 +38,17 @@ h1 {
   margin: 0;
   font-size: clamp(2.4rem, 4vw, 3.4rem);
   letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #7c3aed 0%, #1a73e8 55%, #00acc1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .subtitle {
   margin: 0.5rem 0 0;
-  color: #475569;
+  color: var(--text-muted);
   font-size: 1.05rem;
-  line-height: 1.75;
+  line-height: 1.6;
 }
 
 .back-button,
@@ -42,9 +60,9 @@ button.secondary {
 }
 
 .back-button {
-  background: #f8fafc;
-  color: #334155;
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: var(--surface);
+  color: var(--primary);
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.9rem 1.2rem;
   cursor: pointer;
@@ -53,15 +71,15 @@ button.secondary {
 
 .back-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-soft);
 }
 
 .section-card {
-  background: #ffffff;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
   border-radius: 1rem;
   padding: 1.5rem;
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  border: 1px solid var(--border);
 }
 
 .dashboard-grid {
@@ -88,21 +106,21 @@ button.secondary {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: #ffffff;
+  background: var(--surface);
+  color: var(--text);
   padding: 1.5rem;
   border-radius: 1rem;
-  border: none;
+  border: 1px solid var(--border);
   min-height: 220px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+  box-shadow: var(--shadow-soft);
 }
 
 .dashboard-card-join {
-  background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+  background: var(--surface);
 }
 
 .dashboard-card-registered {
-  background: linear-gradient(135deg, #10b981 0%, #22c55e 100%);
+  background: var(--surface);
 }
 
 .dashboard-card:hover,
@@ -125,7 +143,7 @@ button.primary-action:hover {
 .registration-text p,
 .field-group label {
   margin: 0;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .events-grid {
@@ -145,11 +163,11 @@ button.primary-action:hover {
   grid-template-columns: 1fr auto;
   gap: 1.25rem;
   align-items: start;
-  background: #f8fafc;
+  background: var(--surface);
   border-radius: 1rem;
   padding: 1.25rem;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border);
 }
 
 @media (max-width: 680px) {
@@ -174,17 +192,17 @@ button.primary-action:hover {
 .event-card button {
   min-width: 120px;
   padding: 0.9rem 1.1rem;
-  border-radius: 0.9rem;
-  background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
+  border-radius: 999px;
+  background: var(--primary);
   color: #ffffff;
   border: none;
-  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.18);
+  box-shadow: none;
   align-self: start;
 }
 
 .event-card.active {
-  border-color: rgba(96, 165, 250, 0.7);
-  background: #eff6ff;
+  border-color: #a8c7fa;
+  background: var(--primary-soft);
 }
 
 .form-grid {
@@ -201,7 +219,7 @@ button.primary-action:hover {
 
 .field-group label {
   font-size: 0.95rem;
-  color: #334155;
+  color: var(--text);
   font-weight: 600;
 }
 
@@ -209,22 +227,27 @@ button.primary-action:hover {
   width: 100%;
   padding: 0.95rem 1rem;
   border-radius: 0.9rem;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: #ffffff;
-  color: #0f172a;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .form-grid input:focus {
   outline: none;
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.16);
 }
 
 button.primary-action {
   width: auto;
   max-width: 240px;
   padding: 1rem 1.5rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: none;
 }
 
 .manage-event-card {
@@ -248,11 +271,11 @@ button.primary-action {
   min-height: 4.4rem;
   font-size: 1rem;
   font-weight: 700;
-  border-radius: 1rem;
-  background: linear-gradient(135deg, #5b56ee 0%, #7c3aed 100%);
+  border-radius: 999px;
+  background: var(--primary);
   color: #ffffff;
   border: none;
-  box-shadow: 0 18px 35px rgba(99, 102, 241, 0.18);
+  box-shadow: none;
 }
 
 .section-header {
@@ -269,20 +292,20 @@ button.primary-action {
   padding: 1.35rem 1.4rem;
   border-radius: 1rem;
   background: #ffffff;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.07);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
 }
 
 .registration-text strong {
   display: block;
   font-size: 1rem;
-  color: #111827;
+  color: var(--text);
   margin-bottom: 0.35rem;
 }
 
 .registration-text p {
   margin: 0.25rem 0;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .qr-code {
@@ -298,11 +321,11 @@ button.primary-action {
   margin-top: 1rem;
   padding: 1rem 1.15rem;
   border-radius: 1rem;
-  background: #eef2ff;
-  color: #1e40af;
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
-..detail-grid {
+.detail-grid {
   display: grid;
   gap: 1.5rem;
 }
@@ -317,5 +340,389 @@ button.primary-action {
   display: grid;
   place-items: center;
   padding: 3rem 1rem;
-  color: #334155;
+  color: var(--text-muted);
+}
+
+/* Authentication Styles */
+.auth-card {
+  max-width: 450px;
+  margin: 2rem auto;
+}
+
+.auth-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.auth-footer p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  color: var(--primary-hover);
+}
+
+.error-message {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.success-message {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid #c6dafc;
+}
+
+/* App Actions */
+.app-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.logout-button {
+  background: var(--surface);
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s ease;
+}
+
+.logout-button:hover {
+  transform: translateY(-1px);
+}
+
+/* Event Upload */
+.event-upload-card {
+  max-width: 700px;
+  margin: 2rem auto;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 680px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.image-upload {
+  gap: 1rem;
+}
+
+.image-input-wrapper {
+  display: grid;
+  gap: 1rem;
+}
+
+.image-input-wrapper input {
+  display: block;
+  width: 100%;
+  padding: 2rem;
+  border: 2px dashed #c6dafc;
+  border-radius: 1rem;
+  background: var(--surface-muted);
+  cursor: pointer;
+}
+
+.image-preview {
+  width: 100%;
+  max-height: 250px;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+textarea {
+  font-family: inherit;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+select {
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+/* Browse Events */
+.browse-event {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.browse-event:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-raised);
+}
+
+.event-badge {
+  display: inline-block;
+  background: var(--primary-soft);
+  color: var(--primary);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.event-capacity {
+  font-size: 0.9rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.event-status {
+  font-size: 0.9rem;
+}
+
+.status-active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.status-inactive {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* Selected Event Preview */
+.selected-event-preview {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--surface-muted);
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+}
+
+.selected-event-preview img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 0.9rem;
+}
+
+.selected-event-preview h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.35rem;
+}
+
+.selected-event-preview p {
+  margin: 0.25rem 0;
+  color: var(--text-muted);
+}
+
+/* Wallet */
+.wallet-card {
+  max-width: 900px;
+  margin: 2rem auto;
+}
+
+.ticket-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.ticket-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ticket-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-raised);
+}
+
+.ticket-content {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2rem;
+  padding: 1.75rem;
+  align-items: center;
+}
+
+@media (max-width: 680px) {
+  .ticket-content {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.ticket-info {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ticket-info h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text);
+}
+
+.ticket-venue,
+.ticket-attendee,
+.ticket-email,
+.ticket-date {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.ticket-venue {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.ticket-qr {
+  display: grid;
+  place-items: center;
+  gap: 0.5rem;
+}
+
+.ticket-qr img {
+  width: 140px;
+  height: 140px;
+  border: 2px solid #d2e3fc;
+  border-radius: 0.75rem;
+  padding: 0.35rem;
+  background: #ffffff;
+}
+
+.qr-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.qr-code-large {
+  width: 200px;
+  height: 200px;
+  border: 2px solid #d2e3fc;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  background: #ffffff;
+}
+
+/* My Events */
+.my-event {
+  position: relative;
+}
+
+.my-event::after {
+  content: 'Created by you';
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: var(--primary-soft);
+  color: var(--primary);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Browse Events Card */
+.browse-events-card {
+  max-width: 1000px;
+  margin: 2rem auto;
+}
+
+/* Join Section */
+.join-section {
+  max-width: 700px;
+  margin: 2rem auto;
+}
+
+/* Dashboard Intro */
+.dashboard-intro {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.dashboard-intro h2 {
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-intro p {
+  color: var(--text-muted);
+}
+
+/* Event Form Styles */
+.event-form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.form-grid .field-group {
+  display: grid;
+  gap: 0.55rem;
+  text-align: left;
+}
+
+/* Registration Details */
+.registration-details-card {
+  max-width: 700px;
+  margin: 2rem auto;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 700px) {
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
